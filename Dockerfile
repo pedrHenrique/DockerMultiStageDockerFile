@@ -1,4 +1,4 @@
-# Dependências
+# Dependências do Build
 # Aqui construímos todas as deps do app com base numa imagem mais "completa"
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -6,16 +6,21 @@ COPY package*.json .
 RUN npm ci
 
 # Build
-COPY src src
 COPY tsconfig.json tsconfig.json
+COPY src src
 RUN npm run build
+
+# Dependências de execução
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json .
+RUN npm ci --only=production
 
 # Run
 # Aqui obtemos uma imagem distroless (+ leve, segura e difícil de trabalhar)
 FROM gcr.io/distroless/nodejs22 
 WORKDIR /app
-# Pegamos o conteúdo do outro container de acordo com o nome dado a ele.
-COPY --from=build /app/node_modules node_modules
+COPY --from=deps /app/node_modules node_modules
 COPY --from=build /app/dist dist 
 ENV PORT=3000
 
